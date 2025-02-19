@@ -7,17 +7,17 @@ const foldersId = [
   "1zhB7JuRxOlxQM4_BlSE6XFvK627PAmXe"  //testik
 ];
 
-const type = process.argv[2];
+const type = process.argv[2] || "All";
 const localFolder = process.argv[3] || "./test folder/";
 const folderId = process.argv[4] || foldersId[0];
 
 const DTools = new DriveTools(drive, folderId, localFolder);
 
-if (type == "U" || !type) {
+if (type == "U" || type == "All") {
   console.log("Upload files enabled");
   DTools.uploadFolderToDrive(localFolder, folderId);
 }
-if (type == "D" || !type) {
+if (type == "D" || type == "All") {
   console.log("Download files enabled");
   DTools.copyFolderFromDrive(folderId, localFolder);
 }
