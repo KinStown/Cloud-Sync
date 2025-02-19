@@ -1,4 +1,4 @@
-const DriveTools = require("./upload");
+const DriveTools = require("./driveTools");
 const getDriveService = require('./service');
 
 const drive = getDriveService();
@@ -11,13 +11,13 @@ const localFolder = "./test folder/";
 const DTools = new DriveTools(drive, foldersId[0], localFolder);
 
 //DTools.getDriveFolderData().then(console.log);
-//DTools.createFolder("testik").then(console.log)
+//DTools.createFolder("testik").then(console.log);
 
 //DTools.copyFolderFromDrive(foldersId[0], "C:\\Users\\callback\\Desktop\\test\\test folder");
 
-DTools.uploadFileToDrive("C:\\Users\\callback\\Desktop\\test\\test folder\\Логический элемент.docx").then(console.log);
+//DTools.uploadFileToDrive("C:\\Users\\callback\\Desktop\\test\\test folder\\Логический элемент.docx").then(console.log);
 
-
+DTools.uploadFolderToDrive(localFolder);
 
 
 
@@ -25,14 +25,3 @@ process.once("beforeExit", (code) => {
   console.log(`\nКод завершения процесса: ${code}.\nНажмите Enter для выхода.`);
   process.stdin.read();
 });
-
-
-// const scanFolderForFiles = require('./upload');
-
-// scanFolderForFiles('C:/Users/callback/Desktop/учебка/test')
-// .then(() => {
-//   console.log('🔥 All files have been uploaded to Google Drive successfully!');
-// })
-// .catch((e) => {
-//   console.error(e);
-// })
