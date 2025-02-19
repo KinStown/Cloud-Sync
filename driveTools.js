@@ -28,7 +28,6 @@ class DriveTools {
       q: `'${folderId}' in parents`,
       fields: "files(name,id,parents,modifiedTime,mimeType)"
     });
-    console.log(folderData);
     return folderData.data.files;
   }
 
@@ -82,8 +81,7 @@ class DriveTools {
     }
 
     //file is exists 
-    if (fs.existsSync(file.fullPath) && 
-      fs.statSync(file.fullPath).mtimeMs > (new Date(file.modifiedTime)).getMilliseconds()) 
+    if (fs.existsSync(file.fullPath)) 
         return 0;
     
     //download file
@@ -97,6 +95,7 @@ class DriveTools {
     const fileStream = fs.createWriteStream(fullPath);
     fileStream.on("finish", function () {
       callback();
+      console.log(`File downloaded: ${fullPath}`);
     });
 
     this.drive.files.get({
@@ -122,13 +121,13 @@ class DriveTools {
    * @param {string[]} pathSave
    * @param {string} [ignore=[]] Names of files
    */
-  async copyFolderFromDrive(folderId, localFolderPath, ignore=[]) {
+  async copyFolderFromDrive(folderId, localFolderPath=this.localFolder, ignore=[]) {
     const files = await this.getDriveFolderData(folderId);
 
     for (let file of files) {
       if (ignore.includes(file.name)) continue;
 
-      this.downloadFile(null, localFolderPath, file).catch(console.error);
+      this.downloadFile(file.id, localFolderPath, file).catch(console.error);
     }
   }
 
@@ -154,9 +153,9 @@ class DriveTools {
       const response = await this.drive.files.create({ 
         resource: fileMetadata,
         media: media, 
-        fields: 'id' 
+        fields: 'id, name' 
       });
-      console.log('Файл загружен успешно. Идентификатор файла:', response.data.id);
+      console.log(`File uploaded: ${response.data.name}`);
       return response.data;
 
     } catch (error) {
@@ -178,18 +177,20 @@ class DriveTools {
       file.fullPath = path.join(folderPath, file.name);
       file.stats = fs.statSync(file.fullPath);
 
-      if (!file.stats.isDirectory()) { // Обычный файл
-        const driveFile = filesOnDrive.find((driveFile) => driveFile.name == file.name);
-        if ( driveFile && (new Date(file.stats.mtimeMs)) < (new Date(driveFile.modifiedTime)) )
+      if (!file.stats.isDirectory()) { // Обычный файл    
+        if ( filesOnDrive.find((driveFile) => driveFile.name == file.name) )
           continue;
-
+        
         this.uploadFileToDrive(file.fullPath + "", folderDriveId, file.name + "").catch(console.error);
         file = {};
         continue;
       }
 
+      if ( filesOnDrive.find((driveFile) => driveFile.mimeType.endsWith("folder") 
+        && driveFile.name == file.name) )
+        continue;
       this.createFolder(file.name, folderDriveId)
-      .then((data) => {
+      .then(({data}) => {
         if (data == -1) {
           console.error("Folder not created");
           return;

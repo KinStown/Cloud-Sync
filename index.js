@@ -17,7 +17,14 @@ const DTools = new DriveTools(drive, foldersId[0], localFolder);
 
 //DTools.uploadFileToDrive("C:\\Users\\callback\\Desktop\\test\\test folder\\Логический элемент.docx").then(console.log);
 
-DTools.uploadFolderToDrive(localFolder);
+if (process.argv.includes("upload")) {
+  console.log("Upload files enabled");
+  DTools.uploadFolderToDrive(localFolder, foldersId[0]);
+}
+if (process.argv.includes("downl")) {
+  console.log("Download files enabled");
+  DTools.copyFolderFromDrive(foldersId[0], localFolder);
+}
 
 
 
