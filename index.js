@@ -5,30 +5,33 @@ const drive = getDriveService();
 const foldersId = [
   "1Jcg7JNpGukdsdtylnOWktnFdB1rvj31S", //учебка
   "1zhB7JuRxOlxQM4_BlSE6XFvK627PAmXe"  //testik
-]
-const localFolder = "./test folder/";
+];
 
-const DTools = new DriveTools(drive, foldersId[0], localFolder);
+const type = process.argv[2];
+const localFolder = process.argv[3] || "./test folder/";
+const folderId = process.argv[4] || foldersId[0];
 
-//DTools.getDriveFolderData().then(console.log);
-//DTools.createFolder("testik").then(console.log);
+const DTools = new DriveTools(drive, folderId, localFolder);
 
-//DTools.copyFolderFromDrive(foldersId[0], "C:\\Users\\callback\\Desktop\\test\\test folder");
-
-//DTools.uploadFileToDrive("C:\\Users\\callback\\Desktop\\test\\test folder\\Логический элемент.docx").then(console.log);
-
-if (process.argv.includes("upload")) {
+if (type == "U" || !type) {
   console.log("Upload files enabled");
-  DTools.uploadFolderToDrive(localFolder, foldersId[0]);
+  DTools.uploadFolderToDrive(localFolder, folderId);
 }
-if (process.argv.includes("downl")) {
+if (type == "D" || !type) {
   console.log("Download files enabled");
-  DTools.copyFolderFromDrive(foldersId[0], localFolder);
+  DTools.copyFolderFromDrive(folderId, localFolder);
 }
-
-
 
 process.once("beforeExit", (code) => {
-  console.log(`\nКод завершения процесса: ${code}.\nНажмите Enter для выхода.`);
-  process.stdin.read();
+  console.log(`\nКод завершения процесса: ${code}.\nНажмите любую клавишу для выхода.`);
+  const stdin = process.stdin;
+  stdin.setRawMode( true );
+  stdin.resume();
+
+  stdin.setEncoding( 'utf8' );
+
+  stdin.on('data', function( key ){
+    process.stdout.write( key );
+    process.exit();
+  });
 });
