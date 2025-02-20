@@ -48,6 +48,7 @@ class DriveTools {
         resource: fileMetadata,
         fields: 'id,name',
       });
+      console.log(`Created folder: '${name}' in folder ${parentFolderId}`);
       return fileData;
     } catch (e) {
       return -1;
@@ -155,7 +156,7 @@ class DriveTools {
         media: media, 
         fields: 'id, name' 
       });
-      console.log(`File uploaded: ${response.data.name}`);
+      console.log(`File uploaded: ${filePath}`);
       return response.data;
 
     } catch (error) {
@@ -174,6 +175,8 @@ class DriveTools {
     const files = fs.readdirSync(folderPath);
     let file = {};
     for (file.name of files) {
+      if (file.name.startsWith("!")) continue;
+
       file.fullPath = path.join(folderPath, file.name);
       file.stats = fs.statSync(file.fullPath);
 
@@ -186,19 +189,22 @@ class DriveTools {
         continue;
       }
 
-      if ( filesOnDrive.find((driveFile) => driveFile.mimeType.endsWith("folder") 
-        && driveFile.name == file.name) )
-        continue;
-      this.createFolder(file.name, folderDriveId)
-      .then(({data}) => {
-        if (data == -1) {
-          console.error("Folder not created");
-          return;
-        }
-        const childFolderName = path.join(folderPath, data.name);
-        this.uploadFolderToDrive(childFolderName, data.id).catch(console.error);
-      });
+      let folderData = filesOnDrive.find((driveFile) => 
+        driveFile.mimeType.endsWith("folder") && driveFile.name == file.name);
 
+      if ( !folderData ) {
+        folderData = (await this.createFolder(file.name, folderDriveId)).data;
+        
+        if (folderData == -1) {
+          console.error("Folder not created: " + file.fullPath);
+          continue;
+        }
+      }
+      
+      
+      const childFolderName = path.join(folderPath, folderData.name);
+      this.uploadFolderToDrive(childFolderName, folderData.id).catch(console.error);
+    
       file = {};
     }
   }
