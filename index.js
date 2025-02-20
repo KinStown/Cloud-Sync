@@ -13,12 +13,17 @@ const folderId = process.argv[4] || foldersId[0];
 
 const DTools = new DriveTools(drive, folderId, localFolder);
 
-if (type == "U" || type == "All") {
-  console.log("Upload files enabled");
+if (type == "U") {
+  console.log("Загрузка на диск включена");
   DTools.uploadFolderToDrive(localFolder, folderId);
 }
-if (type == "D" || type == "All") {
-  console.log("Download files enabled");
+else if (type == "D") {
+  console.log("Скачивание с диска включена");
+  DTools.copyFolderFromDrive(folderId, localFolder);
+}
+else if (type == "All") {
+  console.log("Загрузка и скачивание включены");
+  DTools.uploadFolderToDrive(localFolder, folderId);
   DTools.copyFolderFromDrive(folderId, localFolder);
 }
 
@@ -31,7 +36,7 @@ process.once("beforeExit", (code) => {
   stdin.setEncoding( 'utf8' );
 
   stdin.on('data', function( key ){
-    process.stdout.write( key );
+    //process.stdout.write( key );
     process.exit();
   });
 });

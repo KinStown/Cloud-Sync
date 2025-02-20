@@ -48,7 +48,7 @@ class DriveTools {
         resource: fileMetadata,
         fields: 'id,name',
       });
-      console.log(`Created folder: '${name}' in folder ${parentFolderId}`);
+      console.log(`Создана папка: '${name}' Родительская папка: ${parentFolderId}`);
       return fileData;
     } catch (e) {
       return -1;
@@ -96,7 +96,7 @@ class DriveTools {
     const fileStream = fs.createWriteStream(fullPath);
     fileStream.on("finish", function () {
       callback();
-      console.log(`File downloaded: ${fullPath}`);
+      console.log("\x1b[34m%s\x1b[0m", `Файл скачан: ${fullPath}`);
     });
 
     this.drive.files.get({
@@ -156,7 +156,7 @@ class DriveTools {
         media: media, 
         fields: 'id, name' 
       });
-      console.log(`File uploaded: ${filePath}`);
+      console.log("\x1b[36m%s\x1b[0m",`Файл загружен: ${filePath}`);
       return response.data;
 
     } catch (error) {
@@ -170,6 +170,7 @@ class DriveTools {
    * @param {string} folderDriveId 
    */
   async uploadFolderToDrive(folderPath, folderDriveId=this.mainFolderId) {
+    console.log("\x1b[90m%s\x1b[0m", "Проверка папки: " + folderPath);
     const filesOnDrive = await this.getDriveFolderData(folderDriveId);
     
     const files = fs.readdirSync(folderPath);
@@ -184,7 +185,7 @@ class DriveTools {
         if ( filesOnDrive.find((driveFile) => driveFile.name == file.name) )
           continue;
         
-        this.uploadFileToDrive(file.fullPath + "", folderDriveId, file.name + "").catch(console.error);
+        this.uploadFileToDrive(file.fullPath, folderDriveId, file.name).catch(console.error);
         file = {};
         continue;
       }
@@ -196,7 +197,7 @@ class DriveTools {
         folderData = (await this.createFolder(file.name, folderDriveId)).data;
         
         if (folderData == -1) {
-          console.error("Folder not created: " + file.fullPath);
+          console.error("Не удалось создать папку: " + file.fullPath);
           continue;
         }
       }
