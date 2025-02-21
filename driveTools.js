@@ -94,9 +94,9 @@ class DriveTools {
 
   _downloadFile(fileId, fullPath, callback) {
     const fileStream = fs.createWriteStream(fullPath);
-    fileStream.on("finish", function () {
+    fileStream.on("finish", () => {
       callback();
-      console.log("\x1b[34m%s\x1b[0m", `Файл скачан: ${fullPath}`);
+      console.log("\x1b[34m%s\x1b[0m", `Файл скачан: ${this._formatPath(fullPath)}`);
     });
 
     this.drive.files.get({
@@ -156,7 +156,7 @@ class DriveTools {
         media: media, 
         fields: 'id, name' 
       });
-      console.log("\x1b[36m%s\x1b[0m",`Файл загружен: ${filePath} ID: ${response.data.id}`);
+      console.log("\x1b[34m%s\x1b[0m",`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`);
       return response.data;
 
     } catch (error) {
@@ -170,7 +170,7 @@ class DriveTools {
    * @param {string} folderDriveId 
    */
   async uploadFolderToDrive(folderPath, folderDriveId=this.mainFolderId) {
-    console.log("\x1b[90m%s\x1b[0m", "Проверка папки: " + folderPath);
+    console.log("\x1b[90m%s\x1b[0m", "Проверка папки: " + this._formatPath(folderPath));
     const filesOnDrive = await this.getDriveFolderData(folderDriveId);
     
     const files = fs.readdirSync(folderPath);
@@ -202,12 +202,23 @@ class DriveTools {
         }
       }
       
-      
       const childFolderName = path.join(folderPath, folderData.name);
       this.uploadFolderToDrive(childFolderName, folderData.id).catch(console.error);
     
       file = {};
     }
+  }
+
+  /**
+   * 
+   * @param {string} Path Absolute path to folder in local folder
+   * @returns Formated path
+   */
+  _formatPath(Path) {
+    if (!path.isAbsolute(Path) || !Path.includes(this.localFolder)) return Path;
+
+    let fPath = "." + (Path.split(this.localFolder)[1] || "\\");
+    return fPath;
   }
 }
 
