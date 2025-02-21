@@ -1,31 +1,37 @@
 const DriveTools = require("./driveTools");
-const getDriveService = require('./service');
+const { getDriveService, isOnline } = require('./service');
 
-const drive = getDriveService();
-const foldersId = [
-  "1Jcg7JNpGukdsdtylnOWktnFdB1rvj31S", //учебка
-  "1zhB7JuRxOlxQM4_BlSE6XFvK627PAmXe"  //testik
-];
 
-const type = process.argv[2] || "All";
-const localFolder = process.argv[3] || "./test folder/";
-const folderId = process.argv[4] || foldersId[0];
+(async() => {
+  if (!await isOnline()) {
+    console.log("\x1b[31m%s\x1b[0m", "Нет подключения к интернету");
+    return;
+  }
+  const drive = getDriveService();
+  const foldersId = [
+    "1Jcg7JNpGukdsdtylnOWktnFdB1rvj31S", //учебка
+  ];
 
-const DTools = new DriveTools(drive, folderId, localFolder);
+  const type = process.argv[2] || "All";
+  const localFolder = process.argv[3] || "./test folder/";
+  const folderId = process.argv[4] || foldersId[0];
 
-if (type == "U") {
-  console.log("Загрузка на диск включена");
-  DTools.uploadFolderToDrive(localFolder, folderId);
-}
-else if (type == "D") {
-  console.log("Скачивание с диска включена");
-  DTools.copyFolderFromDrive(folderId, localFolder);
-}
-else if (type == "All") {
-  console.log("Загрузка и скачивание включены");
-  DTools.uploadFolderToDrive(localFolder, folderId);
-  DTools.copyFolderFromDrive(folderId, localFolder);
-}
+  const DTools = new DriveTools(drive, folderId, localFolder);
+
+  if (type == "U") {
+    console.log("Загрузка на диск включена");
+    await DTools.uploadFolderToDrive(localFolder, folderId);
+  }
+  else if (type == "D") {
+    console.log("Скачивание с диска включена");
+    await DTools.copyFolderFromDrive(folderId, localFolder);
+  }
+  else if (type == "All") {
+    console.log("Загрузка и скачивание включены");
+    await DTools.uploadFolderToDrive(localFolder, folderId);
+    await DTools.copyFolderFromDrive(folderId, localFolder);
+  }
+})().catch(console.error);
 
 process.once("beforeExit", (code) => {
   console.log(`\nКод завершения процесса: ${code}.\nНажмите любую клавишу для выхода.`);

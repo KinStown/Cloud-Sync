@@ -156,7 +156,7 @@ class DriveTools {
         media: media, 
         fields: 'id, name' 
       });
-      console.log("\x1b[36m%s\x1b[0m",`Файл загружен: ${filePath}`);
+      console.log("\x1b[36m%s\x1b[0m",`Файл загружен: ${filePath} ID: ${response.data.id}`);
       return response.data;
 
     } catch (error) {
