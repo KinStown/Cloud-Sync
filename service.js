@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+const Drive = require('@googleapis/drive');
 const path = require('path');
 const http2 = require('http2');
 
@@ -20,11 +20,11 @@ function getDriveService() {
   const KEYFILEPATH = path.join(__dirname, 'cloud-saver.json');
   const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
-  const auth = new google.auth.GoogleAuth({
+  const auth = new Drive.auth.GoogleAuth({
     keyFile: KEYFILEPATH,
     scopes: SCOPES
   });
-  const driveService = google.drive({ version: 'v3', auth });
+  const driveService = Drive.drive({ version: 'v3', auth });
 
   console.log("auth");
   return driveService;

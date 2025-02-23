@@ -1,6 +1,6 @@
 const DriveTools = require("./driveTools");
 const { getDriveService, isOnline } = require('./service');
-
+require('dotenv').config();
 
 (async() => {
   if (!await isOnline()) {
@@ -8,13 +8,11 @@ const { getDriveService, isOnline } = require('./service');
     return;
   }
   const drive = getDriveService();
-  const foldersId = [
-    "1Jcg7JNpGukdsdtylnOWktnFdB1rvj31S", //учебка
-  ];
+  //const defaultFolder = "1Jcg7JNpGukdsdtylnOWktnFdB1rvj31S";
 
   const type = process.argv[2] || "All";
   const localFolder = process.argv[3] || "./test folder/";
-  const folderId = process.argv[4] || foldersId[0];
+  const folderId = process.argv[4] || process.env.defaultFolderId;
 
   const DTools = new DriveTools(drive, folderId, localFolder);
 
@@ -31,7 +29,7 @@ const { getDriveService, isOnline } = require('./service');
     await DTools.uploadFolderToDrive(localFolder, folderId);
     await DTools.copyFolderFromDrive(folderId, localFolder);
   }
-})().catch(console.error);
+})().catch(console.error)
 
 process.once("beforeExit", (code) => {
   console.log(`\nКод завершения процесса: ${code}.\nНажмите любую клавишу для выхода.`);
