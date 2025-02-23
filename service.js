@@ -17,12 +17,11 @@ function isOnline() {
 }
 
 function getDriveService() {
-  const KEYFILEPATH = path.join(__dirname, 'cloud-saver.json');
-  const SCOPES = ['https://www.googleapis.com/auth/drive'];
+  const scopes = ['https://www.googleapis.com/auth/drive'];
 
   const auth = new Drive.auth.GoogleAuth({
-    keyFile: KEYFILEPATH,
-    scopes: SCOPES
+    keyFile: process.env.tokenPath,
+    scopes
   });
   const driveService = Drive.drive({ version: 'v3', auth });
 

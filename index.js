@@ -10,7 +10,7 @@ require('dotenv').config();
   const drive = getDriveService();
 
   const type = process.argv[2] || "All";
-  const localFolder = process.argv[3] || "./test folder/";
+  const localFolder = process.argv[3] || process.env.dLocalFolder;
   const folderId = process.argv[4] || process.env.defaultFolderId;
 
   const DTools = new DriveTools(drive, folderId, localFolder);
@@ -28,17 +28,4 @@ require('dotenv').config();
     await DTools.uploadFolderToDrive(localFolder, folderId);
     await DTools.copyFolderFromDrive(folderId, localFolder);
   }
-})().catch(console.error)
-
-process.once("beforeExit", (code) => {
-  console.log(`\nКод завершения процесса: ${code}.\nНажмите любую клавишу для выхода.`);
-  const stdin = process.stdin;
-  stdin.setRawMode( true );
-  stdin.resume();
-
-  stdin.setEncoding( 'utf8' );
-
-  stdin.on('data', function( key ){
-    process.exit();
-  });
-});
+})().catch(console.error);
