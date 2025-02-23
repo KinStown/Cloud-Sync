@@ -8,7 +8,6 @@ require('dotenv').config();
     return;
   }
   const drive = getDriveService();
-  //const defaultFolder = "1Jcg7JNpGukdsdtylnOWktnFdB1rvj31S";
 
   const type = process.argv[2] || "All";
   const localFolder = process.argv[3] || "./test folder/";
@@ -40,7 +39,6 @@ process.once("beforeExit", (code) => {
   stdin.setEncoding( 'utf8' );
 
   stdin.on('data', function( key ){
-    //process.stdout.write( key );
     process.exit();
   });
 });
