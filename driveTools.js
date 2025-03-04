@@ -11,14 +11,14 @@ class DriveTools {
    */
   constructor(drive, mainFolderId, localFolder) {
     if (!drive || !mainFolderId) 
-      throw new Error("Invalid params");
+      throw new Error(`Invalid params: ${drive} ${mainFolderId}`);
 
     this.drive = drive;
     this.mainFolderId = mainFolderId;
     this.localFolder = path.resolve(localFolder);
-    if (!fs.existsSync(this.localFolder)) {
+    if (!fs.existsSync(this.localFolder))
       throw new Error("Local folder not exists");
-    }
+    
   }
   
   /**
@@ -29,7 +29,7 @@ class DriveTools {
   async getDriveFolderData(folderId = this.mainFolderId) {
     const folderData = await this.drive.files.list({
       q: `'${folderId}' in parents`,
-      fields: "files(name,id,parents,modifiedTime,mimeType)"
+      fields: "files(name,id,parents,modifiedTime,mimeType,size)"
     });
     return folderData.data.files;
   }
@@ -52,7 +52,7 @@ class DriveTools {
         resource: fileMetadata,
         fields: 'id,name',
       });
-      console.log(`Создана папка: '${name}' Родительская папка: ${parentFolderId}`);
+      print(`Создана папка: '${name}' Родительская папка: ${parentFolderId}`);
       return fileData;
     } catch (e) {
       return -1;
@@ -67,19 +67,17 @@ class DriveTools {
    * @returns File data if file has been downloaded
    */
   async downloadFile(fileId, localFolderPath, customFileData=null) {
-    let file;
+    let file = customFileData;
     if (!customFileData) {
       file = await this.drive.files.get({
         fileId, 
-        fields: "id,name,mimeType,modifiedTime",
+        fields: "id,name,mimeType,modifiedTime,size",
       });
-    } else {
-      file = customFileData;
-    }
+    } 
 
     file.fullPath = path.join(localFolderPath, file.name);
 
-    //file is folder
+    //Файл является папкой
     if (file.mimeType.endsWith("folder")) {
       if (!fs.existsSync(file.fullPath)) {
         fs.mkdirSync(file.fullPath);
@@ -90,19 +88,29 @@ class DriveTools {
       return this.copyFolderFromDrive(file.id, file.fullPath).catch(console.error);
     }
 
-    //file is exists 
-    if ( fs.existsSync(file.fullPath) && 
-      fs.statSync(file.fullPath).mtimeMs >= (new Date(file.modifiedTime)).getTime() ) 
+    //Файл в облаке поврежден
+    if (file.size == 0) {
+      print(`Файл ${file.name}(${file.id}) весит 0Б`, colors.yellow);
+      return 0;
+    }
+
+    //Файл скачан, не изменен и не поврежден
+    if (fs.existsSync(file.fullPath)) 
+      file.stats = fs.statSync(file.fullPath);
+
+    if (file.stats &&
+      file.stats.mtimeMs >= (new Date(file.modifiedTime)).getTime() &&
+      file.stats.size > 0 ) {
         return 0;
+    }
     
-    //download file
-    await new Promise((res, rej) => {
+    //Скачивание файла
+    await new Promise((res) => {
       this._downloadFile(file.id, file.fullPath, () => { 
         const creationDate = new Date(file.modifiedTime);
         fs.utimesSync(file.fullPath, creationDate, creationDate);
         res();
       });
-      
     });
     return file;
   }
@@ -111,7 +119,7 @@ class DriveTools {
     const fileStream = fs.createWriteStream(fullPath);
     fileStream.on("finish", () => {
       callback();
-      console.log("\x1b[34m%s\x1b[0m", `Файл скачан: ${this._formatPath(fullPath)}`);
+      print(`Файл скачан: ${this._formatPath(fullPath)}`, colors.blue);
     });
 
     this.drive.files.get({
@@ -142,8 +150,10 @@ class DriveTools {
 
     for (let file of files) {
       if (ignore.includes(file.name)) continue;
-
-      this.downloadFile(file.id, localFolderPath, file).catch(console.error);
+      global.countOfD++;
+      this.downloadFile(file.id, localFolderPath, file)
+      .then(() => global.countOfD--)
+      .catch(console.error);
     }
   }
 
@@ -171,7 +181,7 @@ class DriveTools {
         media: media, 
         fields: 'id, name' 
       });
-      console.log("\x1b[34m%s\x1b[0m",`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`);
+      print(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`, colors.blue);
       return response.data;
 
     } catch (error) {
@@ -185,23 +195,32 @@ class DriveTools {
    * @param {string} folderDriveId 
    */
   async uploadFolderToDrive(folderPath, folderDriveId=this.mainFolderId) {
-    console.log("\x1b[90m%s\x1b[0m", "Проверка папки: " + this._formatPath(folderPath));
+    //print("Проверка папки: " + this._formatPath(folderPath), colors.gray);
     const filesOnDrive = await this.getDriveFolderData(folderDriveId);
     
     const files = fs.readdirSync(folderPath);
     let file = {};
     for (file.name of files) {
       if (file.name.startsWith("!")) continue;
+      global.countOfCU++;
 
       file.fullPath = path.join(folderPath, file.name);
       file.stats = fs.statSync(file.fullPath);
 
       if (!file.stats.isDirectory()) { // Обычный файл    
+        //Файл поврежден
+        if (file.stats.size == 0) {
+          print("Файл поврежден: " + this._formatPath(file.fullPath), colors.yellow);
+          global.countOfCU--;
+          continue;
+        }
         const driveFile = filesOnDrive.find((driveFile) => driveFile.name == file.name);
         if (driveFile) { //Файл есть в облаке
-          if (new Date(driveFile.modifiedTime).getTime() <= file.stats.mtimeMs)  //Файл не обновился
+          //Файл не изменился и не поврежден
+          if (new Date(driveFile.modifiedTime).getTime() <= file.stats.mtimeMs && driveFile.size != 0 ) { 
+            global.countOfCU--;
             continue;
-
+          }  
           //Обновляем файл
           const metadata = {
             modifiedTime: file.stats.mtime
@@ -210,18 +229,23 @@ class DriveTools {
             body: fs.createReadStream(file.fullPath)
           };
           const updatedFile = await this.updateFile(driveFile.id, metadata, media);
-          console.log("\x1b[34m%s\x1b[0m", `Файл обновлен: ${updatedFile.name} ID: ${updatedFile.id}`);
+          print(`Файл обновлен: ${updatedFile.name} ID: ${updatedFile.id}`, colors.blue);
+          global.countOfCU--;
           continue;
         }
         //Создаем файл
+        global.countOfU++;
         this.uploadFileToDrive(file.fullPath, folderDriveId, {
           name: file.name, 
           modifiedTime: file.stats.mtime
-        }).catch(console.error);
+        })
+        .then(() => global.countOfU--)
+        .catch(console.error);
         file = {};
+        global.countOfCU--;
         continue;
       }
-
+      //Объект является папкой
       let folderData = filesOnDrive.find((driveFile) => 
         driveFile.mimeType.endsWith("folder") && driveFile.name == file.name);
 
@@ -230,12 +254,15 @@ class DriveTools {
         
         if (folderData == -1) {
           console.error("\x1b[31m%s\x1b[0m", "Не удалось создать папку: " + file.fullPath);
+          global.countOfCU--;
           continue;
         }
       }
       
       const childFolderName = path.join(folderPath, folderData.name);
-      this.uploadFolderToDrive(childFolderName, folderData.id).catch(console.error);
+      this.uploadFolderToDrive(childFolderName, folderData.id)
+      .then(() => global.countOfCU--)
+      .catch(console.error);
     }
   }
 

@@ -2,10 +2,14 @@ const DriveTools = require("./driveTools");
 const { getDriveService, isOnline } = require('./service');
 require('dotenv').config();
 
+if (!global.print) {
+  require("./print");
+  print("Импортирован print.js");
+}
+
 (async() => {
   if (!await isOnline()) {
-    console.log("\x1b[31m%s\x1b[0m", "Нет подключения к интернету");
-    return;
+    throw new Error("Нет подключения к интернету");
   }
   const drive = getDriveService();
 
@@ -16,16 +20,19 @@ require('dotenv').config();
   const DTools = new DriveTools(drive, folderId, localFolder);
 
   if (type == "U") {
-    console.log("Загрузка на диск включена");
+    print("Загрузка на диск включена");
     await DTools.uploadFolderToDrive(localFolder, folderId);
   }
   else if (type == "D") {
-    console.log("Скачивание с диска включена");
+    print("Скачивание с диска включена");
     await DTools.copyFolderFromDrive(folderId, localFolder);
   }
   else if (type == "All") {
-    console.log("Загрузка и скачивание включены");
+    print("Загрузка и скачивание включены");
     await DTools.uploadFolderToDrive(localFolder, folderId);
     await DTools.copyFolderFromDrive(folderId, localFolder);
   }
-})().catch(console.error);
+})().catch((err) =>  {
+  print(err, colors.red);
+  process.exitCode = 101;
+});

@@ -1,0 +1,19 @@
+{
+  "dependencies": {
+    "@googleapis/drive": "^8.14.0",
+    "dotenv": "^16.4.7"
+  },
+  "name": "cloud-sync",
+  "version": "1.2.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js",
+    "start": "node starter.js",
+    "build": "pkg -t node14-win starter.js -o CS_pkg.exe",
+    "sea@config": "node --experimental-sea-config sea-config.json",
+    "sea@compile": "node -e \"require('fs').copyFileSync(process.execPath, 'CS_sea.exe')\" && npx postject CS_sea.exe NODE_SEA_BLOB sea-prep.blob  --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --overwrite"
+  },
+  "author": "KinStorm",
+  "license": "ISC",
+  "description": ""
+}

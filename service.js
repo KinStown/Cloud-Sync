@@ -25,7 +25,7 @@ function getDriveService() {
   });
   const driveService = Drive.drive({ version: 'v3', auth });
 
-  console.log("auth");
+  print("auth");
   return driveService;
 };
 
