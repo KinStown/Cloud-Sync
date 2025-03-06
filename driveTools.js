@@ -36,6 +36,22 @@ class DriveTools {
 
   /**
    * 
+   * @param {string} fileId
+   * @returns File data + response status
+   */
+  async getDriveFileData(fileId) {
+    const response = await this.drive.files.get({
+      fileId, 
+      fields: "id,name,mimeType,modifiedTime,size",
+    });
+    return {
+      ...response.data, 
+      status: response.status,
+    };
+  }
+
+  /**
+   * 
    * @param {string} name 
    * @param {string} parentFolderId 
    * @returns Folder data from drive
@@ -69,23 +85,21 @@ class DriveTools {
   async downloadFile(fileId, localFolderPath, customFileData=null) {
     let file = customFileData;
     if (!customFileData) {
-      file = await this.drive.files.get({
-        fileId, 
-        fields: "id,name,mimeType,modifiedTime,size",
-      });
+      file = await this.getDriveFileData(fileId);
     } 
-
-    file.fullPath = path.join(localFolderPath, file.name);
+    const localFile = {
+      fullPath: path.join(localFolderPath, file.name)
+    };
 
     //Файл является папкой
     if (file.mimeType.endsWith("folder")) {
-      if (!fs.existsSync(file.fullPath)) {
-        fs.mkdirSync(file.fullPath);
+      if (!fs.existsSync(localFile.fullPath)) {
+        fs.mkdirSync(localFile.fullPath);
         const creationDate = new Date(file.modifiedTime);
-        fs.utimesSync(file.fullPath, creationDate, creationDate);
+        fs.utimesSync(localFile.fullPath, creationDate, creationDate);
       }
       
-      return this.copyFolderFromDrive(file.id, file.fullPath).catch(console.error);
+      return this.copyFolderFromDrive(file.id, localFile.fullPath).catch(console.error);
     }
 
     //Файл в облаке поврежден
@@ -95,24 +109,24 @@ class DriveTools {
     }
 
     //Файл скачан, не изменен и не поврежден
-    if (fs.existsSync(file.fullPath)) 
-      file.stats = fs.statSync(file.fullPath);
+    if (fs.existsSync(localFile.fullPath)) 
+      localFile.stats = fs.statSync(localFile.fullPath);
 
-    if (file.stats &&
-      file.stats.mtimeMs >= (new Date(file.modifiedTime)).getTime() &&
-      file.stats.size > 0 ) {
+    if (localFile.stats &&
+      localFile.stats.mtimeMs >= (new Date(file.modifiedTime)).getTime() &&
+      localFile.stats.size > 0 ) {
         return 0;
     }
     
     //Скачивание файла
     await new Promise((res) => {
-      this._downloadFile(file.id, file.fullPath, () => { 
+      this._downloadFile(file.id, localFile.fullPath, () => { 
         const creationDate = new Date(file.modifiedTime);
-        fs.utimesSync(file.fullPath, creationDate, creationDate);
+        fs.utimesSync(localFile.fullPath, creationDate, creationDate);
         res();
       });
     });
-    return file;
+    return {...file, ...localFile};
   }
 
   _downloadFile(fileId, fullPath, callback) {
@@ -181,9 +195,13 @@ class DriveTools {
         media: media, 
         fields: 'id, name' 
       });
-      print(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`, colors.blue);
-      return response.data;
+      // Проверка на правильность загрузки файла на облако
+      if (await this.getDriveFileData(response.data.id).id)
+        print(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`, colors.blue);
+      else 
+        print(`Не получилось загрузить правильно файл: ${this._formatPath(filePath)}`);
 
+      return response.data;
     } catch (error) {
       throw new Error(`Ошибка загрузки файла на Google Drive: ${error.message}`);
     }
@@ -216,11 +234,11 @@ class DriveTools {
         }
         const driveFile = filesOnDrive.find((driveFile) => driveFile.name == file.name);
         if (driveFile) { //Файл есть в облаке
-          //Файл не изменился и не поврежден
-          if (new Date(driveFile.modifiedTime).getTime() <= file.stats.mtimeMs && driveFile.size != 0 ) { 
+          //Локальный файл не изменился
+          if (new Date(driveFile.modifiedTime).getTime() >= Math.floor(file.stats.mtimeMs) && Number(driveFile.size) > 0 ) { 
             global.countOfCU--;
             continue;
-          }  
+          }
           //Обновляем файл
           const metadata = {
             modifiedTime: file.stats.mtime
@@ -229,7 +247,7 @@ class DriveTools {
             body: fs.createReadStream(file.fullPath)
           };
           const updatedFile = await this.updateFile(driveFile.id, metadata, media);
-          print(`Файл обновлен: ${updatedFile.name} ID: ${updatedFile.id}`, colors.blue);
+          print(`Файл обновлен: ${this._formatPath(file.fullPath)} ID: ${updatedFile.id}`, colors.blue);
           global.countOfCU--;
           continue;
         }
@@ -274,10 +292,11 @@ class DriveTools {
         media,
         fields: "name,id"
       }, (err, file) => {
-        if (err) 
+        if (err)  {
           rej(err)
-        else 
-          res(file);
+        } else {
+          res(file.data);
+        }
       });
     });
   }
