@@ -5,9 +5,9 @@ const path = require("path");
 class DriveTools {
   /**
    * 
-   * @param {drive_v3.Drive} drive 
-   * @param {string} mainFolderId 
-   * @param {string} localFolder Path to local folder
+   * @param {drive_v3.Drive} drive Авторизованный объект DriveService 
+   * @param {string} mainFolderId Id корневой папки в облаке
+   * @param {string} localFolder Путь до корневой папки синхронизации
    */
   constructor(drive, mainFolderId, localFolder) {
     if (!drive || !mainFolderId) 
@@ -22,9 +22,9 @@ class DriveTools {
   }
   
   /**
-   * 
+   * Получение данных о всех объектах в облачной папке
    * @param {string} folderID 
-   * @returns All files data (name, id, parents, modifiedTime, mimeType)
+   * @returns Возвращает данные (name, id, parents, modifiedTime, mimeType, size) о всех объектах в папке
    */
   async getDriveFolderData(folderId = this.mainFolderId) {
     const folderData = await this.drive.files.list({
@@ -35,26 +35,24 @@ class DriveTools {
   }
 
   /**
-   * 
+   * Получение данных о файле в облаке
    * @param {string} fileId
-   * @returns File data + response status
+   * @returns Возвращает данные о файле (id, name, mimeType, modifiedTime, size) и статус запроса
    */
   async getDriveFileData(fileId) {
     const response = await this.drive.files.get({
       fileId, 
       fields: "id,name,mimeType,modifiedTime,size",
     });
-    return {
-      ...response.data, 
-      status: response.status,
-    };
+    response.data.status = response.status;
+    return response.data;
   }
 
   /**
-   * 
+   * Создает папку в облаке в родительской папке parentFolderId
    * @param {string} name 
    * @param {string} parentFolderId 
-   * @returns Folder data from drive
+   * @returns Возвращает Id и name созданной папки или -1 в случае ошибки
    */
   async createFolder(name, parentFolderId = this.mainFolderId, metadata={} ) {
     const fileMetadata = {
@@ -68,19 +66,18 @@ class DriveTools {
         resource: fileMetadata,
         fields: 'id,name',
       });
-      print(`Создана папка: '${name}' Родительская папка: ${parentFolderId}`);
-      return fileData;
+      return fileData.data;
     } catch (e) {
       return -1;
     }
   }
 
   /**
-   * 
-   * @param {string} fileId 
-   * @param {string} localPath 
-   * @param {object} customFileData Must include id,name,mimeType,modifiedTime
-   * @returns File data if file has been downloaded
+   * Проверяет условия и скачивает файл из облака
+   * @param {string} fileId Id файла, который будет скачан
+   * @param {string} localPath Путь к файлу, без названия самого файла
+   * @param {object} customFileData Ранее полученные данные о файле (id,name,mimeType,modifiedTime). Используются вместо запроса к серверу
+   * @returns Возвращает данные о созданном файле и файле из облака. В случае, если файл является папкой, или ошибки возвращает 0
    */
   async downloadFile(fileId, localFolderPath, customFileData=null) {
     let file = customFileData;
@@ -99,7 +96,7 @@ class DriveTools {
         fs.utimesSync(localFile.fullPath, creationDate, creationDate);
       }
       
-      return this.copyFolderFromDrive(file.id, localFile.fullPath).catch(console.error);
+      return this.copyFolderFromDrive(file.id, localFile.fullPath).catch(print.error);
     }
 
     //Файл в облаке поврежден
@@ -129,6 +126,12 @@ class DriveTools {
     return {...file, ...localFile};
   }
 
+  /**
+   * Скачивает файл из облака без проверки. Использовать после всех проверок(!)
+   * @param {string} fileId Id скачиваемого файла
+   * @param {string} fullPath Полный путь к скачиваемому файлу
+   * @param {() => {}} callback Функция, вызывающаяся после завершения загрузки
+   */
   _downloadFile(fileId, fullPath, callback) {
     const fileStream = fs.createWriteStream(fullPath);
     fileStream.on("finish", () => {
@@ -154,33 +157,31 @@ class DriveTools {
   }
 
   /**
-   * 
+   * Проверяет и скачивает файлы в папку pathSave из папки folderId
    * @param {string} folderId 
-   * @param {string[]} pathSave
-   * @param {string} [ignore=[]] Names of files
+   * @param {string[]} pathSave Корневая папка для синхронизации
    */
-  async copyFolderFromDrive(folderId, localFolderPath=this.localFolder, ignore=[]) {
+  async copyFolderFromDrive(folderId, localFolderPath=this.localFolder) {
     const files = await this.getDriveFolderData(folderId);
 
     for (let file of files) {
-      if (ignore.includes(file.name)) continue;
       global.countOfD++;
       this.downloadFile(file.id, localFolderPath, file)
       .then(() => global.countOfD--)
-      .catch(console.error);
+      .catch(print.error);
     }
   }
 
   /**
-   * 
-   * @param {string} filePath Path to file
-   * @param {string} folderId Parent folder id
-   * @param {null} name File name 
-   * @returns Uploaded file data
+   * Загружает файл filePath в папку folderId в облаке. Дополнительно проверяет поврежденность файла после завершения 
+   * @param {string} filePath Путь к локальному файлу, включая название файла
+   * @param {string} folderId Id папки в облаке, куда будет загружен файл
+   * @param {object} options Дополнительные параметры, которые будут использованы в Metadata
+   * @returns Вызывает ошибку, если не получилось создать файл. В случае удачи возвращает Id и name
    */
   async uploadFileToDrive(filePath, folderId=this.mainFolderId, options={}) {  
     const fileMetadata = {
-      name: options.name || filePath.split(/\/|\\/).pop(),
+      name: filePath.split(/\/|\\/).pop(),
       parents: [folderId],
       ...options
     };
@@ -196,21 +197,21 @@ class DriveTools {
         fields: 'id, name' 
       });
       // Проверка на правильность загрузки файла на облако
-      if (await this.getDriveFileData(response.data.id).id)
+      if (await this.getDriveFileData(response.data.id).size > 0)
         print(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`, colors.blue);
       else 
         print(`Не получилось загрузить правильно файл: ${this._formatPath(filePath)}`);
 
       return response.data;
     } catch (error) {
-      throw new Error(`Ошибка загрузки файла на Google Drive: ${error.message}`);
+      throw new Error("Ошибка загрузки файла на Google Drive", {cause: error});
     }
   }
 
   /**
-   * 
-   * @param {string} folderPath 
-   * @param {string} folderDriveId 
+   * Перебирает, проверяет и загружает объекты из папки folderPath в облако в папку folderDriveId
+   * @param {string} folderPath Путь к папке, которая будет перебираться
+   * @param {string} folderDriveId Id папки, в которую будет происходить копирование
    */
   async uploadFolderToDrive(folderPath, folderDriveId=this.mainFolderId) {
     //print("Проверка папки: " + this._formatPath(folderPath), colors.gray);
@@ -258,7 +259,7 @@ class DriveTools {
           modifiedTime: file.stats.mtime
         })
         .then(() => global.countOfU--)
-        .catch(console.error);
+        .catch(print.error);
         file = {};
         global.countOfCU--;
         continue;
@@ -267,23 +268,35 @@ class DriveTools {
       let folderData = filesOnDrive.find((driveFile) => 
         driveFile.mimeType.endsWith("folder") && driveFile.name == file.name);
 
-      if ( !folderData ) { //Создаем папку
-        folderData = (await this.createFolder(file.name, folderDriveId, { modifiedTime: file.stats.mtime })).data;
+      //Папка не создана
+      if ( !folderData ) { 
+        //Создаем папку
+        folderData = (await this.createFolder(file.name, folderDriveId, { modifiedTime: file.stats.mtime }));
         
+        //Ошибка при создании папки
         if (folderData == -1) {
-          console.error("\x1b[31m%s\x1b[0m", "Не удалось создать папку: " + file.fullPath);
+          print("Не удалось создать папку: " + file.fullPath, colors.red);
           global.countOfCU--;
           continue;
         }
+        print(`Создана папка: '${folderData.name}' Родительская папка: ${folderDriveId}`);
       }
       
+      //Пееребор дочерних папок через рекурсию
       const childFolderName = path.join(folderPath, folderData.name);
       this.uploadFolderToDrive(childFolderName, folderData.id)
       .then(() => global.countOfCU--)
-      .catch(console.error);
+      .catch(print.error);
     }
   }
 
+  /**
+   * Обновляет файл, используя fileMetadata и media
+   * @param {string} fileId 
+   * @param {object} fileMetadata 
+   * @param {object} media 
+   * @returns Возвращает (Id, name) обновленного файла
+   */
   updateFile(fileId, fileMetadata, media) {
     return new Promise((res, rej) => {
       this.drive.files.update({
@@ -302,9 +315,9 @@ class DriveTools {
   }
 
   /**
-   * 
-   * @param {string} Path Absolute path to folder in local folder
-   * @returns Formated path
+   * Форматирует пути к более красивому виду: локальный путь, начиная с корневой папки синхронизации (localFolder)
+   * @param {string} Path Абсолютный путь, включающий корневую папку localFolder
+   * @returns Отформатированный путь или аргумент Path в случае ошибки
    */
   _formatPath(Path) {
     Path = path.resolve(Path);

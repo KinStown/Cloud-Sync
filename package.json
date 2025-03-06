@@ -4,7 +4,7 @@
     "dotenv": "^16.4.7"
   },
   "name": "cloud-sync",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "main": "index.js",
   "scripts": {
     "test": "node index.js",
