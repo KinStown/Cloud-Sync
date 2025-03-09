@@ -1,5 +1,4 @@
 const Drive = require('@googleapis/drive');
-const path = require('path');
 const http2 = require('http2');
 
 function isOnline() {

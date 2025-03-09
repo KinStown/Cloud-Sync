@@ -10,8 +10,10 @@ class DriveTools {
    * @param {string} localFolder Путь до корневой папки синхронизации
    */
   constructor(drive, mainFolderId, localFolder) {
-    if (!drive || !mainFolderId) 
-      throw new Error(`Invalid params: ${drive} ${mainFolderId}`);
+    if (!mainFolderId) 
+      throw new Error(`Invalid mainFolderId: ${mainFolderId}`);
+    if (!drive) 
+      throw new Error("Drive object is null");
 
     this.drive = drive;
     this.mainFolderId = mainFolderId;
@@ -110,7 +112,7 @@ class DriveTools {
       localFile.stats = fs.statSync(localFile.fullPath);
 
     if (localFile.stats &&
-      localFile.stats.mtimeMs >= (new Date(file.modifiedTime)).getTime() &&
+      Math.floor(localFile.stats.mtimeMs) >= (new Date(file.modifiedTime)).getTime() &&
       localFile.stats.size > 0 ) {
         return 0;
     }
@@ -196,11 +198,8 @@ class DriveTools {
         media: media, 
         fields: 'id, name' 
       });
-      // Проверка на правильность загрузки файла на облако
-      if (await this.getDriveFileData(response.data.id).size > 0)
-        print(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`, colors.blue);
-      else 
-        print(`Не получилось загрузить правильно файл: ${this._formatPath(filePath)}`);
+      
+      print(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`, colors.blue);
 
       return response.data;
     } catch (error) {

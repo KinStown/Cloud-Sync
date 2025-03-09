@@ -10,14 +10,20 @@ const colors = {
     reset: '\x1b[0m'
 };
 
+const defaultPrint = (str, color="") => {
+    if (color)
+        str = color + str + colors.reset;
+    console.log(str);
+}
+defaultPrint.error = (err) => {
+    if (typeof err == "string")
+        return print(err, colors.red);
+    return console.error(err);
+}
+
 //Обычная версия функции вывода с цветами
 function setGlobalPrint() {
-    global.print = (str, color="") => {
-        if (color)
-            str = color + str + colors.reset;
-        console.log(str);
-    }
-    print.error = console.error;
+    global.print = defaultPrint;
     global.colors = colors;
 }
 
@@ -27,23 +33,20 @@ function setGlobalLoggerPrint(logger) {
 
     global.colors = colors;
 
-    global.print = (str, color="") => {
+    global.print = (str, color="") => {      
+        if (!logger.tag)
+            return defaultPrint(str, color);
+
         if (color)
             str = color + str + colors.reset;
-        
-        if (!logger.tag)
-            return console.log(str);
 
         stdout.moveCursor(0, -1);
         stdout.write("\n\x1b[K" + str + "\n");
     };
 
     global.print.error = (err) => {
-        if (!logger.tag) {
-            if (typeof err == "string")
-                return print(err, colors.red);
-            return console.error(err);
-        }
+        if (!logger.tag)
+            return defaultPrint.error(err);
         
         let msg;
         if (err.stack) { // Для ошибок, созданных через new Error()

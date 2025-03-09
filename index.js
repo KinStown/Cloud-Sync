@@ -8,7 +8,14 @@
 
 const DriveTools = require("./driveTools");
 const { getDriveService, isOnline } = require('./service');
-require('dotenv').config();
+const minimist = require('minimist');
+
+const args = minimist(process.argv.slice(2), {
+  default: {"env": "./.env"},
+});
+
+require('dotenv').config({ path: args.env });
+
 
 if (!global.print) {
   require("./print").setGlobalPrint();
@@ -21,9 +28,9 @@ if (!global.print) {
   }
   const drive = getDriveService();
 
-  const type = process.argv[2] || "All";
-  const localFolder = process.argv[3] || process.env.dLocalFolder;
-  const folderId = process.argv[4] || process.env.defaultFolderId;
+  const type = args.type || "All";
+  const localFolder = args.localFolder || process.env.dLocalFolder;
+  const folderId = args.folderId || process.env.defaultFolderId;
 
   const DTools = new DriveTools(drive, folderId, localFolder);
 
