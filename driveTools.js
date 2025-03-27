@@ -8,8 +8,9 @@ class DriveTools {
    * @param {drive_v3.Drive} drive Авторизованный объект DriveService 
    * @param {string} mainFolderId Id корневой папки в облаке
    * @param {string} localFolder Путь до корневой папки синхронизации
+   * @param {string[]} whitelist Массив полных путей файлов/папок, с которыми будут происходить операции, остальные файлы будут пропускаться
    */
-  constructor(drive, mainFolderId, localFolder) {
+  constructor(drive, mainFolderId, localFolder, whitelist=[]) {
     if (!mainFolderId) 
       throw new Error(`Invalid mainFolderId: ${mainFolderId}`);
     if (!drive) 
@@ -18,9 +19,9 @@ class DriveTools {
     this.drive = drive;
     this.mainFolderId = mainFolderId;
     this.localFolder = path.resolve(localFolder);
+    this.whitelist = whitelist;
     if (!fs.existsSync(this.localFolder))
       throw new Error("Local folder not exists");
-    
   }
   
   /**
@@ -101,6 +102,10 @@ class DriveTools {
       return this.copyFolderFromDrive(file.id, localFile.fullPath).catch(print.error);
     }
 
+    //Файл не находится в списке
+    if ( this.whitelist.length && !this.whitelist.find(path => localFile.fullPath.includes(path)) )
+      return;
+
     //Файл в облаке поврежден
     if (file.size == 0) {
       print(`Файл ${file.name}(${file.id}) весит 0Б`, colors.yellow);
@@ -112,7 +117,7 @@ class DriveTools {
       localFile.stats = fs.statSync(localFile.fullPath);
 
     if (localFile.stats &&
-      Math.floor(localFile.stats.mtimeMs) >= (new Date(file.modifiedTime)).getTime() &&
+      (localFile.stats.mtimeMs + 1) >= (new Date(file.modifiedTime)).getTime() &&
       localFile.stats.size > 0 ) {
         return 0;
     }
@@ -213,17 +218,23 @@ class DriveTools {
    * @param {string} folderDriveId Id папки, в которую будет происходить копирование
    */
   async uploadFolderToDrive(folderPath, folderDriveId=this.mainFolderId) {
-    //print("Проверка папки: " + this._formatPath(folderPath), colors.gray);
+    print("Проверка папки: " + this._formatPath(folderPath), colors.gray);
     const filesOnDrive = await this.getDriveFolderData(folderDriveId);
     
     const files = fs.readdirSync(folderPath);
     let file = {};
     for (file.name of files) {
-      if (file.name.startsWith("!")) continue;
-      global.countOfCU++;
-
       file.fullPath = path.join(folderPath, file.name);
       file.stats = fs.statSync(file.fullPath);
+
+      //Объект не включен в список
+      if ( this.whitelist.length && !this.whitelist.find(path => file.fullPath.includes(path)) ) 
+        continue;
+      //Объект начинается с ! и не включен в список
+      if ( !this.whitelist.length && file.name.startsWith("!") )
+        continue;
+
+      global.countOfCU++;
 
       if (!file.stats.isDirectory()) { // Обычный файл    
         //Файл поврежден
@@ -235,7 +246,7 @@ class DriveTools {
         const driveFile = filesOnDrive.find((driveFile) => driveFile.name == file.name);
         if (driveFile) { //Файл есть в облаке
           //Локальный файл не изменился
-          if (new Date(driveFile.modifiedTime).getTime() >= Math.floor(file.stats.mtimeMs) && Number(driveFile.size) > 0 ) { 
+          if (new Date(driveFile.modifiedTime).getTime() >= (file.stats.mtimeMs - 1) && Number(driveFile.size) > 0 ) { 
             global.countOfCU--;
             continue;
           }
@@ -255,7 +266,7 @@ class DriveTools {
         global.countOfU++;
         this.uploadFileToDrive(file.fullPath, folderDriveId, {
           name: file.name, 
-          modifiedTime: file.stats.mtime
+          modifiedTime: file.stats.mtimeMs
         })
         .then(() => global.countOfU--)
         .catch(print.error);

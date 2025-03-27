@@ -5,13 +5,13 @@
     "minimist": "^1.2.8"
   },
   "name": "cloud-sync",
-  "version": "1.2.2",
+  "version": "1.2.3",
   "main": "index.js",
   "scripts": {
     "test": "node index.js",
     "start": "node starter.js",
     "build": "pkg -t node14-win starter.js -o output.exe"
-},
+  },
   "author": "KinStorm",
   "license": "ISC",
   "description": ""

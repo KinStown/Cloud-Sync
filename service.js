@@ -15,11 +15,11 @@ function isOnline() {
   });
 }
 
-function getDriveService() {
+function getDriveService(keyFile) {
   const scopes = ['https://www.googleapis.com/auth/drive'];
 
   const auth = new Drive.auth.GoogleAuth({
-    keyFile: process.env.tokenPath,
+    keyFile,
     scopes
   });
   const driveService = Drive.drive({ version: 'v3', auth });

@@ -7,7 +7,7 @@
 //Переменные счетчика открытых запросов (проверка скачивания, загрузка, проверка загрузки)
 global.countOfD = global.countOfU = global.countOfCU = 0;
 
-//Создане счетчика 
+//Создание счетчика 
 const logger = require("./logger");
 logger.activate();
 
