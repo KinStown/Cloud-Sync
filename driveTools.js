@@ -266,7 +266,7 @@ class DriveTools {
         global.countOfU++;
         this.uploadFileToDrive(file.fullPath, folderDriveId, {
           name: file.name, 
-          modifiedTime: file.stats.mtimeMs
+          modifiedTime: file.stats.mtime
         })
         .then(() => global.countOfU--)
         .catch(print.error);
