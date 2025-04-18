@@ -24,7 +24,7 @@ function getDriveService(keyFile) {
   });
   const driveService = Drive.drive({ version: 'v3', auth });
 
-  print("auth");
+  console.log("auth".head);
   return driveService;
 };
 

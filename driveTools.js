@@ -99,7 +99,7 @@ class DriveTools {
         fs.utimesSync(localFile.fullPath, creationDate, creationDate);
       }
       
-      return this.copyFolderFromDrive(file.id, localFile.fullPath).catch(print.error);
+      return this.copyFolderFromDrive(file.id, localFile.fullPath).catch(console.error);
     }
 
     //Файл не находится в списке
@@ -108,7 +108,7 @@ class DriveTools {
 
     //Файл в облаке поврежден
     if (file.size == 0) {
-      print(`Файл ${file.name}(${file.id}) весит 0Б`, colors.yellow);
+      console.log(`Файл ${file.name}(${file.id}) весит 0Б`.warn);
       return 0;
     }
 
@@ -143,7 +143,7 @@ class DriveTools {
     const fileStream = fs.createWriteStream(fullPath);
     fileStream.on("finish", () => {
       callback();
-      print(`Файл скачан: ${this._formatPath(fullPath)}`, colors.blue);
+      console.log(`Файл скачан: ${this._formatPath(fullPath)}`.info);
     });
 
     this.drive.files.get({
@@ -175,7 +175,7 @@ class DriveTools {
       global.countOfD++;
       this.downloadFile(file.id, localFolderPath, file)
       .then(() => global.countOfD--)
-      .catch(print.error);
+      .catch(console.error);
     }
   }
 
@@ -204,7 +204,7 @@ class DriveTools {
         fields: 'id, name' 
       });
       
-      print(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`, colors.blue);
+      console.log(`Файл загружен: ${this._formatPath(filePath)} ID: ${response.data.id}`.info);
 
       return response.data;
     } catch (error) {
@@ -218,7 +218,7 @@ class DriveTools {
    * @param {string} folderDriveId Id папки, в которую будет происходить копирование
    */
   async uploadFolderToDrive(folderPath, folderDriveId=this.mainFolderId) {
-    print("Проверка папки: " + this._formatPath(folderPath), colors.gray);
+    console.log(`Проверка папки: ${this._formatPath(folderPath)}`.debug);
     const filesOnDrive = await this.getDriveFolderData(folderDriveId);
     
     const files = fs.readdirSync(folderPath);
@@ -239,7 +239,7 @@ class DriveTools {
       if (!file.stats.isDirectory()) { // Обычный файл    
         //Файл поврежден
         if (file.stats.size == 0) {
-          print("Файл поврежден: " + this._formatPath(file.fullPath), colors.yellow);
+          console.log("Файл поврежден: " + this._formatPath(file.fullPath).warn);
           global.countOfCU--;
           continue;
         }
@@ -258,7 +258,7 @@ class DriveTools {
             body: fs.createReadStream(file.fullPath)
           };
           const updatedFile = await this.updateFile(driveFile.id, metadata, media);
-          print(`Файл обновлен: ${this._formatPath(file.fullPath)} ID: ${updatedFile.id}`, colors.blue);
+          console.log(`Файл обновлен: ${this._formatPath(file.fullPath)} ID: ${updatedFile.id}`.info);
           global.countOfCU--;
           continue;
         }
@@ -269,7 +269,7 @@ class DriveTools {
           modifiedTime: file.stats.mtime
         })
         .then(() => global.countOfU--)
-        .catch(print.error);
+        .catch(console.error);
         file = {};
         global.countOfCU--;
         continue;
@@ -285,18 +285,18 @@ class DriveTools {
         
         //Ошибка при создании папки
         if (folderData == -1) {
-          print("Не удалось создать папку: " + file.fullPath, colors.red);
+          console.log(`Не удалось создать папку: ${file.fullPath}`.error);
           global.countOfCU--;
           continue;
         }
-        print(`Создана папка: '${folderData.name}' Родительская папка: ${folderDriveId}`);
+        console.log(`Создана папка: '${folderData.name}' Родительская папка: ${folderDriveId}`.info2);
       }
       
       //Пееребор дочерних папок через рекурсию
       const childFolderName = path.join(folderPath, folderData.name);
       this.uploadFolderToDrive(childFolderName, folderData.id)
       .then(() => global.countOfCU--)
-      .catch(print.error);
+      .catch(console.error);
     }
   }
 

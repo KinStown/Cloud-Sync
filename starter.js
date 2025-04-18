@@ -7,12 +7,9 @@
 //Переменные счетчика открытых запросов (проверка скачивания, загрузка, проверка загрузки)
 global.countOfD = global.countOfU = global.countOfCU = 0;
 
-//Создание счетчика 
+//Создание счетчика и кастомной функции вывода
 const logger = require("./logger");
 logger.activate();
-
-//Использование модифицированного вывода в консоль
-require("./print").setGlobalLoggerPrint(logger);
 
 //Вход в основную программу
 require("./index");

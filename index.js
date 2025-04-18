@@ -12,6 +12,17 @@
 const DriveTools = require("./driveTools");
 const { getDriveService, isOnline } = require('./service');
 const minimist = require('minimist');
+var colors = require('colors');
+
+colors.setTheme({
+  head: 'white', //Тип запуска и auth
+  info: 'blue', //Загрузка и скачивание файлов
+  info2: 'white', //Папка создана
+  warn: 'yellow',
+  debug: 'grey', //Проверка папок
+  error: 'red',
+  log: 'white' //Вывод счетчиков
+});
 
 const args = minimist(process.argv.slice(2), {
   default: {
@@ -22,14 +33,9 @@ const args = minimist(process.argv.slice(2), {
 
 require('dotenv').config({ path: args.env });
 
-if (!global.print) {
-  require("./print").setGlobalPrint();
-  print("Импортирован стандартный print");
-}
-
 (async() => {
   if (!await isOnline()) 
-    throw "Нет подключения к интернету";
+    throw "Нет подключения к интернету".error;
   
   const type = args.type.toLowerCase();
   const localFolder = args.localFolder || process.env.dLocalFolder;
@@ -46,19 +52,19 @@ if (!global.print) {
   const DTools = new DriveTools(drive, folderId, localFolder, whitelist);
 
   if (type == "u") {
-    print("Загрузка на диск включена");
+    console.log("Загрузка на диск включена".head);
     await DTools.uploadFolderToDrive(localFolder, folderId);
   }
   else if (type == "d") {
-    print("Скачивание с диска включена");
+    console.log("Скачивание с диска включена".head);
     await DTools.copyFolderFromDrive(folderId, localFolder);
   }
   else if (type == "all") {
-    print("Загрузка и скачивание включены");
+    console.log("Загрузка и скачивание включены".head);
     await DTools.uploadFolderToDrive(localFolder, folderId);
     await DTools.copyFolderFromDrive(folderId, localFolder);
   }
 })().catch((err) =>  {
-  print.error(err);
+  console.error(err);
   process.exitCode = 101;
 });
