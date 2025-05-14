@@ -6,7 +6,7 @@ class DriveTools {
   /**
    * 
    * @param {drive_v3.Drive} drive Авторизованный объект DriveService 
-   * @param {string} mainFolderId Id корневой папки в облаке
+   * @param {string} mainFolderId Id корневой рабочей папки в облаке
    * @param {string} localFolder Путь до корневой папки синхронизации
    * @param {string[]} whitelist Массив полных путей файлов/папок, с которыми будут происходить операции, остальные файлы будут пропускаться
    */
@@ -31,7 +31,7 @@ class DriveTools {
    */
   async getDriveFolderData(folderId = this.mainFolderId) {
     const folderData = await this.drive.files.list({
-      q: `'${folderId}' in parents`,
+      q: `'${folderId}' in parents and trashed=false`,
       fields: "files(name,id,parents,modifiedTime,mimeType,size)"
     });
     return folderData.data.files;

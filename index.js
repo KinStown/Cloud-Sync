@@ -1,7 +1,12 @@
 /**
  * Основной файл для запуска программы из консоли
  * Параметры запуска:
- * 1. type - тип работы программы (U - обновление файлов в облако, D - скачивание файлов, All - включает в себя все методы) (опционально)
+ * 1. type - тип работы программы (опционально)
+ *    U - обновление файлов в облако, 
+ *    D - скачивание файлов, 
+ *    All - включает в себя все методы) (опционально)
+ *    SU - удаление всей рабочей папки и загрузка файлов на диск
+ *    SD - удаление всей локальной рабочей папки и скачивание
  * 2. localFolder - корневая папка для синхронизации
  * 3. folderId - Id корневой папки для синхронизации
  * 4. tokenPath - путь к token.json
@@ -10,6 +15,7 @@
  */
 
 const DriveTools = require("./driveTools");
+const fs = require("fs");
 const { getDriveService, isOnline } = require('./service');
 const minimist = require('minimist');
 var colors = require('colors');
@@ -51,18 +57,41 @@ require('dotenv').config({ path: args.env });
   const drive = getDriveService(tokenPath);
   const DTools = new DriveTools(drive, folderId, localFolder, whitelist);
 
-  if (type == "u") {
-    console.log("Загрузка на диск включена".head);
-    await DTools.uploadFolderToDrive(localFolder, folderId);
-  }
-  else if (type == "d") {
-    console.log("Скачивание с диска включена".head);
-    await DTools.copyFolderFromDrive(folderId, localFolder);
-  }
-  else if (type == "all") {
-    console.log("Загрузка и скачивание включены".head);
-    await DTools.uploadFolderToDrive(localFolder, folderId);
-    await DTools.copyFolderFromDrive(folderId, localFolder);
+  switch (type) {
+    case "u": 
+      console.log("Загрузка на диск включена".head);
+      await DTools.uploadFolderToDrive(localFolder, folderId);
+      break;
+
+    case "d": 
+      console.log("Скачивание с диска включена".head);
+      await DTools.copyFolderFromDrive(folderId, localFolder);
+      break;
+    
+    case "su":
+      console.log("Перезапись диска включена".head);
+      await DTools.drive.files.delete({ fileId: folderId });
+      await DTools.uploadFolderToDrive(localFolder, folderId);
+      break;
+    
+    case "sd":
+      console.log("Перезапись локальной папки включена".head);
+      fs.rm(localFolder, {
+          recursive: true,
+          force: true
+      }, async(err) => {
+          if (err) {
+              return console.error('Ошибка при удалении директории:', err);
+          }
+          await DTools.uploadFolderToDrive(localFolder, folderId);
+      });
+      break;
+    
+    case "all":
+      console.log("Загрузка и скачивание включены".head);
+      await DTools.uploadFolderToDrive(localFolder, folderId);
+      await DTools.copyFolderFromDrive(folderId, localFolder);
+      break;
   }
 })().catch((err) =>  {
   console.error(err);
